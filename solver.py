@@ -1,6 +1,7 @@
 from collections import deque
 import sys # Necessary for BFS.
 import random # Necessary for current implementation of neighbor generation.
+import math # Necessary for simulated annealing.
 
 
 
@@ -111,6 +112,77 @@ def generateNeighbor(grid, walls, wallBudget):
   return newWalls
 
 
+# Run a greedy search to determine the best places to put the walls.
+# Limit the number of iterations so that the algorithm actually finishes. We can increase or decrease the number as needed.
+# The term "energy" refers to the score of a particular solution in simulated annealing. It may seem backwards, but we're looking for a minimum energy.
+# "Temperature" refers to the current acceptance. High temp means more exploration and accepts "worse" local decision. Low temp means being more greedy and only accepting the "best" local decisions. Initially, we'll start high to try and escape local optima and search for global optima.
+# initialTemp, coolingRate, AND iterations ARE TUNABLE VARIABLES!!! THE REST ARE NOT!!!
+def simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget, initialTemp=50.0, coolingRate=0.998, iterations=10000):
+
+  currentWalls = set(walls)
+  currentEnergy = energy(grid, currentWalls, horsePosition, portals)
+
+  bestWalls = set(currentWalls)
+  bestEnergy = currentEnergy
+  temperature = initialTemp
+
+  for _ in range(iterations):
+    candidateWalls = generateNeighbor(grid, currentWalls, wallBudget)
+    candidateEnergy = energy(grid, candidateWalls, horsePosition, portals)
+
+    # Determine how much better/worse the neighboring node is
+    delta = candidateEnergy - currentEnergy
+
+    # ALWAYS accept if it is a better state
+    if delta < 0:
+      currentWalls = candidateWalls
+      currentEnergy = candidateEnergy
+    
+    # Otherwise, accept the "worse" state with probability P
+    else:
+      probability = math.exp(-delta / temperature)
+      if random.random() < probability:
+        currentWalls = candidateWalls
+        currentEnergy = candidateEnergy
+    
+    # Keep track of the best
+    if currentEnergy < bestEnergy:
+      bestWalls = set(currentWalls)
+      bestEnergy = currentEnergy
+    
+    # As we get further along, it's more likely that we've already escaped local optima, so don't explore as much. 
+    # But never go all the way down to 0
+    temperature *= coolingRate
+    if temperature < 0.01:
+      temperature = 0.01
+
+  return bestWalls, bestEnergy
+
+
+# # TEST IMPLEMENTATION OF A GREEDY HILL CLIMBING ALGORITHM -- NOT FINAL SIMULATED ANNEALING BUT I STILL NEED IT FOR NOW
+# def greedySearch(grid, walls, horsePosition, portals, wallBudget, iterations=1000):
+#   currentWalls = set(walls)
+#   currentEnergy = energy(grid, currentWalls, horsePosition, portals)
+
+#   bestWalls = set(currentWalls)
+#   bestEnergy = currentEnergy
+
+#   for _ in range(iterations):
+#     candidateWalls = generateNeighbor(grid, currentWalls, wallBudget)
+#     candidateEnergy = energy(grid, candidateWalls, horsePosition, portals)
+
+#     # If a neighboring node has a lower energy, accept as the better state
+#     if candidateEnergy < currentEnergy:
+#       currentWalls = candidateWalls
+#       currentEnergy = candidateEnergy
+
+#       # If the new solution is the best solution, accept the new state.
+#       if currentEnergy < bestEnergy:
+#         bestWalls = set(currentWalls)
+#         bestEnergy = currentEnergy
+
+#   return bestWalls, bestEnergy
+
 
 if __name__ == "__main__":
   wallBudget = int(input())
@@ -142,3 +214,11 @@ if __name__ == "__main__":
     # A (row, col) is a key for where the position of the corresponding portal is
     portals[(r1, c1)] = (r2, c2)
     portals[(r2, c2)] = (r1, c1)
+
+
+  # Test prints: final energy should always be lower than initial energy. If it's not, something is wrong with the simulated annealing algorithm.
+  bestWalls, bestEnergy = simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget)
+  print("Best energy:", bestEnergy)
+  print("Best score:", -bestEnergy)
+  print("Initial:", energy(grid, walls, horsePosition, portals))
+  print("Final:", bestEnergy)
