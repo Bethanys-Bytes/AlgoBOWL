@@ -159,7 +159,7 @@ def simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget, initialT
   return bestWalls, bestEnergy
 
 
-# # TEST IMPLEMENTATION OF A GREEDY HILL CLIMBING ALGORITHM -- NOT FINAL SIMULATED ANNEALING BUT I STILL NEED IT FOR NOW
+# # TEST IMPLEMENTATION OF A GREEDY HILL CLIMBING ALGORITHM -- THIS WORKS!!! IT IS HERE AS A BACKUP IN CASE ANNEALING STOPS WORKING!
 # def greedySearch(grid, walls, horsePosition, portals, wallBudget, iterations=1000):
 #   currentWalls = set(walls)
 #   currentEnergy = energy(grid, currentWalls, horsePosition, portals)
@@ -183,6 +183,27 @@ def simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget, initialT
 
 #   return bestWalls, bestEnergy
 
+
+# Output function. There is NO algorithm logic in this. If something stops working that's not related to printing outputs, don't change this shit! 
+def buildOutputGrid(grid, finalWalls):
+  rows = len(grid)
+  cols = len(grid[0])
+
+  # We need a new grid, but everything except select "." and "W" tiles should remain the same from the old grid.
+  outputGrid = [row[:] for row in grid]
+
+  for r in range(rows):
+    for c in range(cols):
+      # Clear all existing walls back to grass tiles
+      if outputGrid[r][c] == 'W':
+        outputGrid[r][c] = '.'
+  
+  # Put the new wall state into the output grid
+  for r, c in finalWalls:
+    if outputGrid[r][c] == '.':
+      outputGrid[r][c] = 'W'
+
+  return outputGrid
 
 if __name__ == "__main__":
   wallBudget = int(input())
@@ -215,10 +236,26 @@ if __name__ == "__main__":
     portals[(r1, c1)] = (r2, c2)
     portals[(r2, c2)] = (r1, c1)
 
-
-  # Test prints: final energy should always be lower than initial energy. If it's not, something is wrong with the simulated annealing algorithm.
+  # Run the simulated annealing
   bestWalls, bestEnergy = simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget)
-  print("Best energy:", bestEnergy)
-  print("Best score:", -bestEnergy)
-  print("Initial:", energy(grid, walls, horsePosition, portals))
-  print("Final:", bestEnergy)
+
+  # Print the final score and output. The score needs to be negated because of the weird stuff with simulated annealing and its energy.
+  # Check that the final solution is indeed a valid one.
+  finalScore, isValid = bfsScore(grid, bestWalls, horsePosition, portals)
+  if not isValid:
+    # :(
+    print("ERROR: final solution is invalid")
+    sys.exit(1)
+
+  print(finalScore)
+
+  # Print the world state corresponding to this score
+  finalGrid = buildOutputGrid(grid, bestWalls)
+  for row in finalGrid:
+    print("".join(row))
+
+  # # Test prints: final energy should always be lower than initial energy. If it's not, something is wrong with the simulated annealing algorithm.
+  # print("Best energy:", bestEnergy)
+  # print("Best score:", -bestEnergy)
+  # print("Initial:", energy(grid, walls, horsePosition, portals))
+  # print("Final:", bestEnergy)
