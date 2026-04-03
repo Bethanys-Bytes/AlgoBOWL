@@ -6,7 +6,7 @@ import math # Necessary for simulated annealing.
 
 
 # BFS helper. Defines how much each kind of tile is worth once enclosed.
-def tile_score(tile):
+def tileScore(tile):
   if tile == '.':
     return 1
   elif tile == 'H':
@@ -35,7 +35,7 @@ def bfsScore(grid, walls, horsePosition, portals):
 
   while queue:
     r, c = queue.popleft()
-    score += tile_score(grid[r][c])
+    score += tileScore(grid[r][c])
 
     # Boundary check. Can the horse escape?
     if r == 0 or r == rows - 1 or c == 0 or c == cols - 1:
@@ -69,7 +69,7 @@ def bfsScore(grid, walls, horsePosition, portals):
 
 
 # Energy function. Needs to be negative to represent that this is a maximization problem.
-# (Positive energy function for simulated annealing is typically a minimization)
+# (Positive energy function for simulated annealing is a minimization)
 def energy(grid, walls, horsePosition, portals):
   score, valid = bfsScore(grid, walls, horsePosition, portals)
   if valid:
@@ -81,6 +81,8 @@ def energy(grid, walls, horsePosition, portals):
 
 
 # Neighbor node generation for the greedy algorithm and the simulated annealing.
+# Neighbor generation is currently made by moving a wall to a random spot. We should probably consider finding a better way to add neighbor nodes
+# Might be better if we try moving walls by one in each direction? It's worth a shot.
 def generateNeighbor(grid, walls, wallBudget):
   newWalls = set(walls)
   if not newWalls:
@@ -159,7 +161,7 @@ def simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget, initialT
   return bestWalls, bestEnergy
 
 
-# # TEST IMPLEMENTATION OF A GREEDY HILL CLIMBING ALGORITHM -- THIS WORKS!!! IT IS HERE AS A BACKUP IN CASE ANNEALING STOPS WORKING!
+# # TEST IMPLEMENTATION OF A GREEDY HILL CLIMBING ALGORITHM -- THIS WORKS!!! IT IS HERE AS A BACKUP IN CASE ANNEALING STOPS WORKING AND FOR REFERENCE!
 # def greedySearch(grid, walls, horsePosition, portals, wallBudget, iterations=1000):
 #   currentWalls = set(walls)
 #   currentEnergy = energy(grid, currentWalls, horsePosition, portals)
@@ -249,13 +251,11 @@ if __name__ == "__main__":
 
   print(finalScore)
 
-  # Print the world state corresponding to this score
+  # Print the world state corresponding to the best score
   finalGrid = buildOutputGrid(grid, bestWalls)
   for row in finalGrid:
     print("".join(row))
 
   # # Test prints: final energy should always be lower than initial energy. If it's not, something is wrong with the simulated annealing algorithm.
-  # print("Best energy:", bestEnergy)
-  # print("Best score:", -bestEnergy)
   # print("Initial:", energy(grid, walls, horsePosition, portals))
   # print("Final:", bestEnergy)
