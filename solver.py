@@ -89,29 +89,71 @@ def generateNeighbor(grid, walls, wallBudget):
   newWalls = set(walls)
 
   # At any point in time, we can add a new wall if under budget, remove a wall, or move an existing wall.
+  probabilities = [1]
   possibleMoves = ["move"]
+  numM = 1
   if len(newWalls) < wallBudget:
     possibleMoves.append("add")
+    numM += 1
   if len(newWalls) > 0:
     possibleMoves.append("remove")
+    numM += 1
 
-  moveType = random.choice(possibleMoves)
+  # Probabilities of picking (move, add, remove). Probabilities are tunable.
+  # Currently favor moving a wall most of the time.
+  if numM == 2:
+    # Either no walls left in budget or no walls on map.
+    probabilities = [0.4, 0.6]
+  elif numM == 3:
+    # Still walls left in budget and 1 or more walls on map.
+    probabilities = [0.2, 0.5, 0.3]
+
+  moveType = "move"
+
+  rand = random.random()
+  for i in range(numM):
+    if rand < probabilities[numM - i - 1]:
+      moveType = possibleMoves[i]
+
+  # If using probabilities becomes more optimal, comment out this line
+  # moveType = random.choice(possibleMoves)
+
   if moveType == "add":
-    rows = len(grid)
-    cols = len(grid[0])
-    # Iterate through picking a random spot in the world.
-    while True:
-      r = random.randint(0, rows - 1)
-      c = random.randint(0, cols - 1)
+    # Either chooses to add to a chokepoint tile or choose a random tile.
+    # % Chance is tunable.
+    nextType = random.random()
+    if nextType < 1:
+      # Pick a random new tile for the wall.
+      rows = len(grid)
+      cols = len(grid[0])
 
-      # If the new spot is not amenable to placing a new wall, try again
-      if grid[r][c] != '.':
-        continue
-      if (r, c) in newWalls:
-        continue
+      while True:
+        r = random.randint(0, rows - 1)
+        c = random.randint(0, cols - 1)
 
-      newWalls.add((r, c))
-      break
+        if grid[r][c] != '.':
+          continue
+
+        if (r, c) in newWalls:
+          continue
+
+        newWalls.add((r, c))
+        break
+    # Select a chokepoint tile to add it
+    else:
+      while True:
+        choke = random.choice(chokePoints)
+        r = choke[0]
+        c = choke[1]
+
+        if grid[r][c] != '.':
+          continue
+
+        if (r, c) in newWalls:
+          continue
+
+        newWalls.add((r, c))
+        break
 
   elif moveType == "remove":
     wallToRemove = random.choice(list(newWalls))
@@ -123,21 +165,61 @@ def generateNeighbor(grid, walls, wallBudget):
 
     oldWall = random.choice(list(newWalls))
     newWalls.remove(oldWall)
-    rows = len(grid)
-    cols = len(grid[0])
 
-    while True:
-      r = random.randint(0, rows - 1)
-      c = random.randint(0, cols - 1)
+    # Either chooses to move to a neighboring tile or choose a random tile.
+    # % Chance is tunable.
+    nextType = random.random()
+    if nextType < 1:
+      # Pick a random new tile for the wall.
+      rows = len(grid)
+      cols = len(grid[0])
 
-      if grid[r][c] != '.':
-        continue
+      while True:
+        r = random.randint(0, rows - 1)
+        c = random.randint(0, cols - 1)
 
-      if (r, c) in newWalls:
-        continue
+        if grid[r][c] != '.':
+          continue
 
-      newWalls.add((r, c))
-      break
+        if (r, c) in newWalls:
+          continue
+
+        newWalls.add((r, c))
+        break
+    # Select a chokepoint to move to
+    elif nextType < 0.7:
+      while True:
+        choke = random.choice(chokePoints)
+        r = choke[0]
+        c = choke[1]
+
+        if grid[r][c] != '.':
+          continue
+
+        if (r, c) in newWalls:
+          continue
+
+        newWalls.add((r, c))
+        break
+    else:
+      # Else pick a tile next to itself.
+      while True:
+        rd = (oldWall[0], oldWall[0] - 1, oldWall[0] + 1)
+        cd = (oldWall[1], oldWall[1] - 1, oldWall[1] + 1)
+        r = random.choice(rd)
+        c = random.choice(cd)
+
+        if r < 0 or c < 0 or r >= numRow or c >= numCol:
+          continue
+
+        if grid[r][c] != '.':
+          continue
+
+        if (r, c) in newWalls:
+          continue
+
+        newWalls.add((r, c))
+        break
 
   # Return all the new possibilities for neighboring nodes
   return newWalls
@@ -218,7 +300,7 @@ if __name__ == "__main__":
   # Create the data structures
   grid = [] # State of the world
   walls = set() # Walls and their positions
-  horsePosition = None # HORSE
+  horsePosition = None # HORSE 
   
   for r in range(numRow):
     row = list(input().strip())
@@ -241,9 +323,59 @@ if __name__ == "__main__":
     # A (row, col) is a key for where the position of the corresponding portal is
     portals[(r1, c1)] = (r2, c2)
     portals[(r2, c2)] = (r1, c1)
+  
+  chokePoints = [] # Tiles on the map that only have one spot between two tiles of water.
+  # Check for and keep track of chokepoints caused by water.
+  for r in range(1, numRow - 1):
+    for c in range(1, numCol - 1):
+      point = grid[r][c]
+      # Water in upper left corner
+      if grid[r - 1][c - 1] == "#":
+        if grid[r + 1][c - 1] == "#" or grid[r + 1][c] == "#" or grid[r + 1][c + 1] == "#" or grid[r - 1][c + 1] == "#" or grid[r][c + 1] == "#":
+          chokePoints.append((r, c))
+      # Water in top middle
+      if grid[r - 1][c] == "#":
+        if grid[r + 1][c - 1] == "#" or grid[r + 1][c] == "#" or grid[r + 1][c + 1] == "#" or grid[r][c - 1] == "#" or grid[r][c + 1] == "#":
+          chokePoints.append((r, c))
+      # Water in upper right corner
+      if grid[r - 1][c + 1] == "#":
+        if grid[r + 1][c - 1] == "#" or grid[r + 1][c] == "#" or grid[r + 1][c + 1] == "#" or grid[r - 1][c - 1] == "#" or grid[r][c - 1] == "#":
+          chokePoints.append((r, c))
+      # Water in middle left
+      if grid[r][c - 1] == "#":
+        if grid[r - 1][c] == "#" or grid[r - 1][c + 1] == "#" or grid[r + 1][c] == "#" or grid[r + 1][c + 1] == "#" or grid[r][c + 1] == "#":
+          chokePoints.append((r, c))
+      # Water in middle right
+      if grid[r][c + 1] == "#":
+        if grid[r - 1][c] == "#" or grid[r - 1][c - 1] == "#" or grid[r + 1][c] == "#" or grid[r + 1][c - 1] == "#" or grid[r][c - 1] == "#":
+          chokePoints.append((r, c))
+      # Water in bottom left corner
+      if grid[r + 1][c - 1] == "#":
+        if grid[r + 1][c + 1] == "#" or grid[r - 1][c + 1] == "#" or grid[r][c + 1] == "#" or grid[r - 1][c - 1] == "#" or grid[r - 1][c] == "#":
+          chokePoints.append((r, c))
+      # Water in bottom middle
+      if grid[r + 1][c] == "#":
+        if grid[r][c + 1] == "#" or grid[r][c - 1] == "#" or grid[r - 1][c - 1] == "#" or grid[r - 1][c] == "#" or grid[r - 1][c + 1] == "#":
+          chokePoints.append((r, c))
+      # Water in bottom right corner
+      if grid[r + 1][c + 1] == "#":
+        if grid[r + 1][c - 1] == "#" or grid[r - 1][c - 1] == "#" or grid[r][c - 1] == "#" or grid[r - 1][c + 1] == "#" or grid[r - 1][c] == "#":
+          chokePoints.append((r, c))
+      
 
   # Run the simulated annealing
-  bestWalls, bestEnergy = simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget)
+  # Do it with five restarts in order to ensure we got the best possible outcome.
+  # Number of restarts is tunable.
+  numStarts = 5
+  bestWalls = ()
+  bestEnergy = sys.maxsize
+  for _ in range(numStarts):
+    scoredWalls, scoredEnergy = simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget)
+    if scoredEnergy < bestEnergy:
+      bestWalls = scoredWalls
+      bestEnergy = scoredEnergy
+
+  # bestWalls, bestEnergy = simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget)
 
   # Print the final score and output. The score needs to be negated because of the weird stuff with simulated annealing and its energy.
   # Check that the final solution is indeed a valid one.
