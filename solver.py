@@ -71,7 +71,9 @@ def bfsScore(grid, walls, horsePosition, portals):
 # Energy function. Needs to be negative to represent that this is a maximization problem.
 # (Positive energy function for simulated annealing is a minimization)
 def energy(grid, walls, horsePosition, portals):
-  score, valid = bfsScore(grid, walls, horsePosition, portals)
+  # Update the state of the world
+  currentGrid = buildOutputGrid(grid, walls)
+  score, valid = bfsScore(currentGrid, walls, horsePosition, portals)
   if valid:
     return -score
   else:
@@ -85,30 +87,57 @@ def energy(grid, walls, horsePosition, portals):
 # Might be better if we try moving walls by one in each direction? It's worth a shot.
 def generateNeighbor(grid, walls, wallBudget):
   newWalls = set(walls)
-  if not newWalls:
-    return newWalls
-  
-  # Randomly select a wall to move
-  oldWall = random.choice(list(newWalls))
-  newWalls.remove(oldWall)
 
-  rows = len(grid)
-  cols = len(grid[0])
-  # Iterate through picking a random spot in the world.
-  while True:
-    r = random.randint(0, rows - 1)
-    c = random.randint(0, cols - 1)
+  # At any point in time, we can add a new wall if under budget, remove a wall, or move an existing wall.
+  possibleMoves = ["move"]
+  if len(newWalls) < wallBudget:
+    possibleMoves.append("add")
+  if len(newWalls) > 0:
+    possibleMoves.append("remove")
 
-    # If the new spot is not amenable to placing a new wall, try again.
-    if grid[r][c] != '.':
-      continue
+  moveType = random.choice(possibleMoves)
+  if moveType == "add":
+    rows = len(grid)
+    cols = len(grid[0])
+    # Iterate through picking a random spot in the world.
+    while True:
+      r = random.randint(0, rows - 1)
+      c = random.randint(0, cols - 1)
 
-    # If the the new spot is already in the set to check, try again.
-    if (r, c) in newWalls:
-      continue
+      # If the new spot is not amenable to placing a new wall, try again
+      if grid[r][c] != '.':
+        continue
+      if (r, c) in newWalls:
+        continue
 
-    newWalls.add((r, c))
-    break
+      newWalls.add((r, c))
+      break
+
+  elif moveType == "remove":
+    wallToRemove = random.choice(list(newWalls))
+    newWalls.remove(wallToRemove)
+
+  else:
+    if not newWalls:
+      return newWalls
+
+    oldWall = random.choice(list(newWalls))
+    newWalls.remove(oldWall)
+    rows = len(grid)
+    cols = len(grid[0])
+
+    while True:
+      r = random.randint(0, rows - 1)
+      c = random.randint(0, cols - 1)
+
+      if grid[r][c] != '.':
+        continue
+
+      if (r, c) in newWalls:
+        continue
+
+      newWalls.add((r, c))
+      break
 
   # Return all the new possibilities for neighboring nodes
   return newWalls
@@ -119,7 +148,7 @@ def generateNeighbor(grid, walls, wallBudget):
 # The term "energy" refers to the score of a particular solution in simulated annealing. It may seem backwards, but we're looking for a minimum energy.
 # "Temperature" refers to the current acceptance. High temp means more exploration and accepts "worse" local decision. Low temp means being more greedy and only accepting the "best" local decisions. Initially, we'll start high to try and escape local optima and search for global optima.
 # initialTemp, coolingRate, AND iterations ARE TUNABLE VARIABLES!!! THE REST ARE NOT!!!
-def simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget, initialTemp=50.0, coolingRate=0.998, iterations=10000):
+def simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget, initialTemp=60.0, coolingRate=0.998, iterations=50000):
 
   currentWalls = set(walls)
   currentEnergy = energy(grid, currentWalls, horsePosition, portals)
@@ -159,31 +188,6 @@ def simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget, initialT
       temperature = 0.01
 
   return bestWalls, bestEnergy
-
-
-# # TEST IMPLEMENTATION OF A GREEDY HILL CLIMBING ALGORITHM -- THIS WORKS!!! IT IS HERE AS A BACKUP IN CASE ANNEALING STOPS WORKING AND FOR REFERENCE!
-# def greedySearch(grid, walls, horsePosition, portals, wallBudget, iterations=1000):
-#   currentWalls = set(walls)
-#   currentEnergy = energy(grid, currentWalls, horsePosition, portals)
-
-#   bestWalls = set(currentWalls)
-#   bestEnergy = currentEnergy
-
-#   for _ in range(iterations):
-#     candidateWalls = generateNeighbor(grid, currentWalls, wallBudget)
-#     candidateEnergy = energy(grid, candidateWalls, horsePosition, portals)
-
-#     # If a neighboring node has a lower energy, accept as the better state
-#     if candidateEnergy < currentEnergy:
-#       currentWalls = candidateWalls
-#       currentEnergy = candidateEnergy
-
-#       # If the new solution is the best solution, accept the new state.
-#       if currentEnergy < bestEnergy:
-#         bestWalls = set(currentWalls)
-#         bestEnergy = currentEnergy
-
-#   return bestWalls, bestEnergy
 
 
 # Output function. There is NO algorithm logic in this. If something stops working that's not related to printing outputs, don't change this shit! 
@@ -243,19 +247,15 @@ if __name__ == "__main__":
 
   # Print the final score and output. The score needs to be negated because of the weird stuff with simulated annealing and its energy.
   # Check that the final solution is indeed a valid one.
-  finalScore, isValid = bfsScore(grid, bestWalls, horsePosition, portals)
+  # Must build the final world state before running final BFS.
+  finalGrid = buildOutputGrid(grid, bestWalls)
+  finalScore, isValid = bfsScore(finalGrid, bestWalls, horsePosition, portals)
   if not isValid:
-    # :(
-    print("ERROR: final solution is invalid")
+    print(":(")
     sys.exit(1)
 
   print(finalScore)
 
   # Print the world state corresponding to the best score
-  finalGrid = buildOutputGrid(grid, bestWalls)
   for row in finalGrid:
     print("".join(row))
-
-  # # Test prints: final energy should always be lower than initial energy. If it's not, something is wrong with the simulated annealing algorithm.
-  # print("Initial:", energy(grid, walls, horsePosition, portals))
-  # print("Final:", bestEnergy)
