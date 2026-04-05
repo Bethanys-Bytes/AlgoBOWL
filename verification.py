@@ -1,4 +1,4 @@
-from utils import Stack
+from utils.Stack import Stack
 # GLOBALS
 inputGrid = []
 inputGridDict = {}
@@ -54,8 +54,7 @@ def readOutput():
             if(cell_type == "H"):
                 horsePosition = (r,c)
             outputGridDict[(r,c)] = cell_type
-
-"""
+""" 
 verifyOutput will be in charge of the heavy lifting for verification. It will run a modified DFS to check if the 
 perimeter is accessible in the output. It will also be in charge of making sure that no new walls
 were placed on cells that are also water, pre-placed walls, bees, apples, cherries, portals, horse.
@@ -79,8 +78,10 @@ def verifyNoEscape(outputGrid, horsePosition):
         for cell in neighbors: # for each neighbor
             if cell not in visited:
                 stack.push(cell) # push neighbor to stack if not already visited
+    print(f"DEBUG: suggested score: {suggestedScore}\nverified score: {verifiedScore}")
     if suggestedScore == verifiedScore: # if both our calculated score and output suggestedScore are the same AND DFS completed, then the format of the output is valid
         return True
+    print(f"Suggested Score {suggestedScore} does not match Verified Score {verifiedScore}. Invalid!")
     return False
 """
 findNeighbors is a helper function to finding grass cells adjacent to a given cell, it returns a list of all adjacent grass cells
@@ -126,5 +127,5 @@ if __name__ == "__main__":
     readOutput()
     isEscapeable = verifyNoEscape(outputGrid, horsePosition)
     isValidFormat = verifyOutputFormat()
-    print(f"Escapeable? -> {isEscapeable} \n Valid format? -> {isValidFormat}")
+    print(f"Exists an Escapeable Path? -> {isEscapeable}\nValid format? -> {isValidFormat}")
     

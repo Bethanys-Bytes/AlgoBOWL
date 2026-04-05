@@ -17,7 +17,7 @@ class Stack:
             raise IndexError("Peek from empty stack")
         return self._data[-1]
     
-    def is_empty(self)
+    def is_empty(self):
         return len(self._data) == 0
     
     def __len__(self):
