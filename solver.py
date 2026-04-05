@@ -72,8 +72,9 @@ def bfsScore(grid, walls, horsePosition, portals):
 # (Positive energy function for simulated annealing is a minimization)
 def energy(grid, walls, horsePosition, portals):
   # Update the state of the world
-  currentGrid = buildOutputGrid(grid, walls)
-  score, valid = bfsScore(currentGrid, walls, horsePosition, portals)
+  #currentGrid = buildOutputGrid(grid, walls)
+  #score, valid = bfsScore(currentGrid, walls, horsePosition, portals)
+  score, valid = bfsScore(grid, walls, horsePosition, portals)
   if valid:
     return -score
   else:
@@ -122,7 +123,7 @@ def generateNeighbor(grid, walls, wallBudget):
     # Either chooses to add to a chokepoint tile or choose a random tile.
     # % Chance is tunable.
     nextType = random.random()
-    if nextType < 1:
+    if nextType < 0.5:
       # Pick a random new tile for the wall.
       rows = len(grid)
       cols = len(grid[0])
@@ -169,7 +170,7 @@ def generateNeighbor(grid, walls, wallBudget):
     # Either chooses to move to a neighboring tile or choose a random tile.
     # % Chance is tunable.
     nextType = random.random()
-    if nextType < 1:
+    if nextType < 0.35:
       # Pick a random new tile for the wall.
       rows = len(grid)
       cols = len(grid[0])
@@ -230,7 +231,7 @@ def generateNeighbor(grid, walls, wallBudget):
 # The term "energy" refers to the score of a particular solution in simulated annealing. It may seem backwards, but we're looking for a minimum energy.
 # "Temperature" refers to the current acceptance. High temp means more exploration and accepts "worse" local decision. Low temp means being more greedy and only accepting the "best" local decisions. Initially, we'll start high to try and escape local optima and search for global optima.
 # initialTemp, coolingRate, AND iterations ARE TUNABLE VARIABLES!!! THE REST ARE NOT!!!
-def simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget, initialTemp=60.0, coolingRate=0.998, iterations=50000):
+def simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget, initialTemp=80.0, coolingRate=0.9995, iterations=15000):
 
   currentWalls = set(walls)
   currentEnergy = energy(grid, currentWalls, horsePosition, portals)
@@ -324,49 +325,52 @@ if __name__ == "__main__":
     portals[(r1, c1)] = (r2, c2)
     portals[(r2, c2)] = (r1, c1)
   
-  chokePoints = [] # Tiles on the map that only have one spot between two tiles of water.
+  chokePoints = set() # Tiles on the map that only have one spot between two tiles of water.
   # Check for and keep track of chokepoints caused by water.
+  # Chokepoints are important because they note spots where it is potentially very cheap to put a wall to enclose an area.
   for r in range(1, numRow - 1):
     for c in range(1, numCol - 1):
-      point = grid[r][c]
+      if grid[r][c] != "." and grid[r][c] != "W":
+        continue
       # Water in upper left corner
       if grid[r - 1][c - 1] == "#":
         if grid[r + 1][c - 1] == "#" or grid[r + 1][c] == "#" or grid[r + 1][c + 1] == "#" or grid[r - 1][c + 1] == "#" or grid[r][c + 1] == "#":
-          chokePoints.append((r, c))
+          chokePoints.add((r, c))
       # Water in top middle
       if grid[r - 1][c] == "#":
         if grid[r + 1][c - 1] == "#" or grid[r + 1][c] == "#" or grid[r + 1][c + 1] == "#" or grid[r][c - 1] == "#" or grid[r][c + 1] == "#":
-          chokePoints.append((r, c))
+          chokePoints.add((r, c))
       # Water in upper right corner
       if grid[r - 1][c + 1] == "#":
         if grid[r + 1][c - 1] == "#" or grid[r + 1][c] == "#" or grid[r + 1][c + 1] == "#" or grid[r - 1][c - 1] == "#" or grid[r][c - 1] == "#":
-          chokePoints.append((r, c))
+          chokePoints.add((r, c))
       # Water in middle left
       if grid[r][c - 1] == "#":
         if grid[r - 1][c] == "#" or grid[r - 1][c + 1] == "#" or grid[r + 1][c] == "#" or grid[r + 1][c + 1] == "#" or grid[r][c + 1] == "#":
-          chokePoints.append((r, c))
+          chokePoints.add((r, c))
       # Water in middle right
       if grid[r][c + 1] == "#":
         if grid[r - 1][c] == "#" or grid[r - 1][c - 1] == "#" or grid[r + 1][c] == "#" or grid[r + 1][c - 1] == "#" or grid[r][c - 1] == "#":
-          chokePoints.append((r, c))
+          chokePoints.add((r, c))
       # Water in bottom left corner
       if grid[r + 1][c - 1] == "#":
         if grid[r + 1][c + 1] == "#" or grid[r - 1][c + 1] == "#" or grid[r][c + 1] == "#" or grid[r - 1][c - 1] == "#" or grid[r - 1][c] == "#":
-          chokePoints.append((r, c))
+          chokePoints.add((r, c))
       # Water in bottom middle
       if grid[r + 1][c] == "#":
         if grid[r][c + 1] == "#" or grid[r][c - 1] == "#" or grid[r - 1][c - 1] == "#" or grid[r - 1][c] == "#" or grid[r - 1][c + 1] == "#":
-          chokePoints.append((r, c))
+          chokePoints.add((r, c))
       # Water in bottom right corner
       if grid[r + 1][c + 1] == "#":
         if grid[r + 1][c - 1] == "#" or grid[r - 1][c - 1] == "#" or grid[r][c - 1] == "#" or grid[r - 1][c + 1] == "#" or grid[r - 1][c] == "#":
-          chokePoints.append((r, c))
+          chokePoints.add((r, c))
+  chokePoints = list(chokePoints)
       
 
   # Run the simulated annealing
   # Do it with five restarts in order to ensure we got the best possible outcome.
   # Number of restarts is tunable.
-  numStarts = 5
+  numStarts = 10
   bestWalls = ()
   bestEnergy = sys.maxsize
   for _ in range(numStarts):
@@ -374,8 +378,6 @@ if __name__ == "__main__":
     if scoredEnergy < bestEnergy:
       bestWalls = scoredWalls
       bestEnergy = scoredEnergy
-
-  # bestWalls, bestEnergy = simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget)
 
   # Print the final score and output. The score needs to be negated because of the weird stuff with simulated annealing and its energy.
   # Check that the final solution is indeed a valid one.
