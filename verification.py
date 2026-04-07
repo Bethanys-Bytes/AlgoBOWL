@@ -1,4 +1,5 @@
 from utils.Stack import Stack
+from utils.input_parser import FieldTiles, get_point_value, HorseField
 # GLOBALS
 inputGrid = []
 inputGridDict = {}
@@ -26,23 +27,15 @@ It also creates a key,value pair in outputGridDict in the form of (cell, cell_ty
 where we can easily look up what a cell is (apples, bees, wall, water, etc.)
 """
 def readInput():
-    global wallBudget, numRows, numCols
-    wallBudget = int(input())
-    numRows, numCols = map(int, input().split())
-    for r in range(numRows):
-        row = list(input().strip())
-        inputGrid.append(row)
-        for c in range(numCols):
-            cell_type = inputGrid[r][c]
-            inputGridDict[(r,c)] = cell_type
-    numPortals = int(input())
-    for r in range(numPortals):
-        r1, c1, r2, c2 = map(int, input().split())
-        # A (row, col) is a key for where the position of the corresponding portal is
-        portals[(r1, c1)] = (r2, c2)
-        portals[(r2, c2)] = (r1, c1)
+    global wallBudget, numRows, numCols, inputGrid, portals
+    fieldInput = HorseField()
+    wallBudget = fieldInput.wallBudget
+    numRows = fieldInput.row_count
+    numCols = fieldInput.col_count
+    inputGrid = fieldInput.grid
+    portals = fieldInput.portals
 
-def readOutput(): 
+def readOutput():
     global suggestedScore, horsePosition
     suggestedScore = int(input())
 
@@ -64,7 +57,7 @@ def verifyNoEscape(outputGrid, horsePosition):
     stack = Stack()
     visited = set()
     stack.push(horsePosition) # push horsePosition (start) onto stack
-    while not stack.is_empty(): 
+    while not stack.is_empty():
         current = stack.pop() # get the cell at the top of stack
         if current[0] == 0 or current[0] == numRows - 1 or \
             current[1] == 0 or current[1] == numCols - 1: # check if current cell is a perimeter grass cell, if it is output is invalid
@@ -118,14 +111,14 @@ def verifyOutputFormat():
     else:
         print(f"Output walls exceeded wall budget! Wall budgert is: {wallBudget}. The output grid used: {usedWalls} new walls.")
         return False
-            
-            
-    
-        
+
+
+
+
 if __name__ == "__main__":
     readInput()
     readOutput()
     isEscapeable = verifyNoEscape(outputGrid, horsePosition)
     isValidFormat = verifyOutputFormat()
+
     print(f"No escape routes? -> {isEscapeable}\nValid format? -> {isValidFormat}")
-    
