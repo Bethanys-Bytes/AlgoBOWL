@@ -2,25 +2,7 @@ from collections import deque
 import sys # Necessary for BFS.
 import random # Necessary for current implementation of neighbor generation.
 import math # Necessary for simulated annealing.
-
-
-
-# BFS helper. Defines how much each kind of tile is worth once enclosed.
-def tileScore(tile):
-  if tile == '.':
-    return 1
-  elif tile == 'H':
-    return 1
-  elif tile == 'a':
-    return 11
-  elif tile == 'b':
-    return -4
-  elif tile == 'c':
-    return 4
-  elif tile == 'p':
-    return 1
-  return 0
-
+from utils.input_parser import FieldTiles, get_point_value, HorseField
 
 # BFS function. Answers "Given the current state of the world, can the horse escape?" and "What is the score of the current enclosure?"
 def bfsScore(grid, walls, horsePosition, portals):
@@ -35,19 +17,19 @@ def bfsScore(grid, walls, horsePosition, portals):
 
   while queue:
     r, c = queue.popleft()
-    score += tileScore(grid[r][c])
+    score += get_point_value(grid[r][c])
 
     # Boundary check. Can the horse escape?
     if r == 0 or r == rows - 1 or c == 0 or c == cols - 1:
       reachesBoundary = True
-    
+
     # Check for a portal at the current position. Treat it as an edge in the graph for possible traversal.
     if (r, c) in portals:
       pr, pc = portals[(r, c)]
       if (pr, pc) not in visited and (pr, pc) not in walls:
         visited.add((pr, pc))
         queue.append((pr, pc))
-    
+
     # Check all four surrounding directions
     for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
       nr, nc = r + dr, c + dc
@@ -251,20 +233,20 @@ def simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget, initialT
     if delta < 0:
       currentWalls = candidateWalls
       currentEnergy = candidateEnergy
-    
+
     # Otherwise, accept the "worse" state with probability P
     else:
       probability = math.exp(-delta / temperature)
       if random.random() < probability:
         currentWalls = candidateWalls
         currentEnergy = candidateEnergy
-    
+
     # Keep track of the best
     if currentEnergy < bestEnergy:
       bestWalls = set(currentWalls)
       bestEnergy = currentEnergy
-    
-    # As we get further along, it's more likely that we've already escaped local optima, so don't explore as much. 
+
+    # As we get further along, it's more likely that we've already escaped local optima, so don't explore as much.
     # But never go all the way down to 0
     temperature *= coolingRate
     if temperature < 0.01:
@@ -273,7 +255,7 @@ def simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget, initialT
   return bestWalls, bestEnergy
 
 
-# Output function. There is NO algorithm logic in this. If something stops working that's not related to printing outputs, don't change this shit! 
+# Output function. There is NO algorithm logic in this. If something stops working that's not related to printing outputs, don't change this shit!
 def buildOutputGrid(grid, finalWalls):
   rows = len(grid)
   cols = len(grid[0])
@@ -286,7 +268,7 @@ def buildOutputGrid(grid, finalWalls):
       # Clear all existing walls back to grass tiles
       if outputGrid[r][c] == 'W':
         outputGrid[r][c] = '.'
-  
+
   # Put the new wall state into the output grid
   for r, c in finalWalls:
     if outputGrid[r][c] == '.':
@@ -295,36 +277,17 @@ def buildOutputGrid(grid, finalWalls):
   return outputGrid
 
 if __name__ == "__main__":
-  wallBudget = int(input())
-  numRow, numCol = map(int, input().split())
+  fieldInput = HorseField()
+  wallBudget = fieldInput.wallBudget
+  numRow = fieldInput.row_count
+  numCol = fieldInput.col_count
 
   # Create the data structures
-  grid = [] # State of the world
-  walls = set() # Walls and their positions
-  horsePosition = None # HORSE 
-  
-  for r in range(numRow):
-    row = list(input().strip())
-    # Put rows into the global grid
-    grid.append(row)
-    for c in range(numCol):
-      # Keep track of the wall positions
-      if row[c] == 'W':
-        walls.add((r, c))
-      # and where the horse is
-      elif row[c] == 'H':
-        horsePosition = (r, c)
+  grid = fieldInput.grid # State of the world
+  walls = fieldInput.walls # Walls and their positions
+  horsePosition = fieldInput.horse # HORSE
+  portals = fieldInput.portals
 
-  # Store portal mappings
-  numPortals = int(input())
-  portals = {}
-
-  for _ in range(numPortals):
-    r1, c1, r2, c2 = map(int, input().split())
-    # A (row, col) is a key for where the position of the corresponding portal is
-    portals[(r1, c1)] = (r2, c2)
-    portals[(r2, c2)] = (r1, c1)
-  
   chokePoints = set() # Tiles on the map that only have one spot between two tiles of water.
   # Check for and keep track of chokepoints caused by water.
   # Chokepoints are important because they note spots where it is potentially very cheap to put a wall to enclose an area.
@@ -365,7 +328,7 @@ if __name__ == "__main__":
         if grid[r + 1][c - 1] == "#" or grid[r - 1][c - 1] == "#" or grid[r][c - 1] == "#" or grid[r - 1][c + 1] == "#" or grid[r - 1][c] == "#":
           chokePoints.add((r, c))
   chokePoints = list(chokePoints)
-      
+
 
   # Run the simulated annealing
   # Do it with five restarts in order to ensure we got the best possible outcome.
