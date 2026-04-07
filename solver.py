@@ -310,7 +310,7 @@ if __name__ == "__main__":
     for c in range(numCol):
       # Keep track of the wall positions
       if row[c] == 'W':
-        walls.add((r, c))
+        row[c] = '.'
       # and where the horse is
       elif row[c] == 'H':
         horsePosition = (r, c)
@@ -329,6 +329,7 @@ if __name__ == "__main__":
   # Check for and keep track of chokepoints caused by water.
   # Chokepoints are important because they note spots where it is potentially very cheap to put a wall to enclose an area.
   for r in range(1, numRow - 1):
+    print(f"Still working...{r}")
     for c in range(1, numCol - 1):
       if grid[r][c] != "." and grid[r][c] != "W":
         continue
@@ -365,7 +366,7 @@ if __name__ == "__main__":
         if grid[r + 1][c - 1] == "#" or grid[r - 1][c - 1] == "#" or grid[r][c - 1] == "#" or grid[r - 1][c + 1] == "#" or grid[r - 1][c] == "#":
           chokePoints.add((r, c))
   chokePoints = list(chokePoints)
-      
+  print("Exitted Loops.")
 
   # Run the simulated annealing
   # Do it with five restarts in order to ensure we got the best possible outcome.
@@ -374,7 +375,9 @@ if __name__ == "__main__":
   bestWalls = ()
   bestEnergy = sys.maxsize
   for _ in range(numStarts):
+    print("Beginning SA!")
     scoredWalls, scoredEnergy = simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget)
+    print("SA COMPLETE!")
     if scoredEnergy < bestEnergy:
       bestWalls = scoredWalls
       bestEnergy = scoredEnergy
