@@ -24,33 +24,35 @@ class Tile:
 
 
 class SubField:
-    def __init__(self, current_state: set[Tile], edges: set[Tile] = None):
+    def __init__(self, current_state: set[Tile]):
         self.state = current_state
-        self.edge_tiles: set[Tile] = set()
         self.boundary: set[Tile] = set()
         for tile in self.state:
             outside_state = tile.adjacencies - self.state
             if len(outside_state) > 0:
-                self.edge_tiles.add(tile)
                 self.boundary |= outside_state
 
     def expand(self, sink_tile) -> set["SubField"]:
         expansions = set()
-        for edge_tile in self.edge_tiles:
-            adjacent_tiles = edge_tile.adjacencies - self.state
-            # other_edges = self.edge_tiles - {edge_tile}
-            for adjacent_tile in adjacent_tiles:
-                if sink_tile in adjacent_tile.adjacencies:
+        for boundary_tile in self.boundary:
+            sink_found = False
+            new_state = set(self.state)
+            stack = [boundary_tile]
+            while stack:
+                current = stack.pop()
+                if current in new_state:
                     continue
-                current = adjacent_tile
-                new_state = self.state.union([adjacent_tile])
-                while True:
-                    next_tiles = current.adjacencies - new_state
-                    if len(next_tiles) != 1 or sink_tile in next_tiles:
-                        break
-                    current = next(iter(next_tiles))
-                    new_state.add(current)
-                expansions.add(SubField(new_state))
+                new_state.add(current)
+                next_tiles = current.adjacencies - new_state
+                if sink_tile in next_tiles:
+                    sink_found = True
+                    break
+                for nxt in next_tiles:
+                    if nxt.tile_type != FieldTiles.GRASS:
+                        stack.append(nxt)
+            if sink_found or sink_tile in new_state:
+                continue
+            expansions.add(SubField(new_state))
         return expansions
 
     def next_possible_expansions(self) -> int:
@@ -59,7 +61,8 @@ class SubField:
     def is_subset(self, *others: "SubField"):
         for other in others:
             if self.state.issubset(other.state):
-                return (self.boundary - other.state).issubset(other.boundary)
+                if (self.boundary - other.state).issubset(other.boundary):
+                    return True
         return False
 
     def __eq__(self, other):
@@ -95,6 +98,8 @@ class SubField:
         for tile in self.state:
             sub_grid[tile.row][tile.col] = tile.tile_type
         for tile in self.boundary:
+            if tile.row == tile.col == -1:
+                continue
             sub_grid[tile.row][tile.col] = "W"
         for i in range(max_x + 1):
             for j in range(max_y + 1):
@@ -155,12 +160,12 @@ if __name__ == "__main__":
         expand_from = expand_queue.pop()
         possible_expansions = expand_from.expand(sink_tile)
         for possible_expansion in possible_expansions:
-            if possible_expansion in subfields or possible_expansion.is_subset(
-                *subfields
-            ):
+            if possible_expansion in subfields:# or possible_expansion.is_subset(*subfields):
                 continue
             subfields.add(possible_expansion)
             if sink_tile in possible_expansion.boundary:
+                print("Edge Found")
+                # possible_expansion.display()
                 continue
             expand_queue.append(possible_expansion)
             if possible_expansion.next_possible_expansions() > field_input.wallBudget:
@@ -172,7 +177,10 @@ if __name__ == "__main__":
                 ]
             ):
                 valid_solutions.add(possible_expansion)
+                # possible_expansion.display()
     # Display possible valid outputs
     # TODO: Verify that this gets ALL possible solutions
     for subfield in valid_solutions:
-        subfield.display()
+        field_input.display([(wall_tile.row, wall_tile.col) for wall_tile in subfield.boundary])
+        print()
+        # subfield.display()
