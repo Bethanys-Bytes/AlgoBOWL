@@ -24,6 +24,7 @@ def tileScore(tile):
 
 # BFS function. Answers "Given the current state of the world, can the horse escape?" and "What is the score of the current enclosure?"
 def bfsScore(grid, walls, horsePosition, portals):
+  boundaryTilesReached = 0
   rows = len(grid)
   cols = len(grid[0])
 
@@ -32,14 +33,13 @@ def bfsScore(grid, walls, horsePosition, portals):
 
   score = 0
   reachesBoundary = False
-
   while queue:
     r, c = queue.popleft()
     score += tileScore(grid[r][c])
 
     # Boundary check. Can the horse escape?
     if r == 0 or r == rows - 1 or c == 0 or c == cols - 1:
-      reachesBoundary = True
+      boundaryTilesReached+=1
     
     # Check for a portal at the current position. Treat it as an edge in the graph for possible traversal.
     if (r, c) in portals:
@@ -65,7 +65,7 @@ def bfsScore(grid, walls, horsePosition, portals):
         # Else the horse is able to move to the new tile, so add it
         visited.add((nr, nc))
         queue.append((nr, nc))
-  return score, not reachesBoundary
+  return score, boundaryTilesReached == 0, boundaryTilesReached
 
 
 # Energy function. Needs to be negative to represent that this is a maximization problem.
@@ -74,13 +74,13 @@ def energy(grid, walls, horsePosition, portals):
   # Update the state of the world
   #currentGrid = buildOutputGrid(grid, walls)
   #score, valid = bfsScore(currentGrid, walls, horsePosition, portals)
-  score, valid = bfsScore(grid, walls, horsePosition, portals)
+  score, valid, boundaryTilesReached = bfsScore(grid, walls, horsePosition, portals)
   if valid:
     return -score
   else:
     # Because the simulated annealing relies on a greedy algorithm, don't return if it's invalid, just give it a huge penalty.
     # Greedy will avoid it, and since there MUST be a valid solution for other groups' inputs, greedy must favor something else that is valid.
-    return sys.maxsize - score
+    return 1000 * boundaryTilesReached - score
 
 
 # Neighbor node generation for the greedy algorithm and the simulated annealing.
@@ -231,7 +231,7 @@ def generateNeighbor(grid, walls, wallBudget):
 # The term "energy" refers to the score of a particular solution in simulated annealing. It may seem backwards, but we're looking for a minimum energy.
 # "Temperature" refers to the current acceptance. High temp means more exploration and accepts "worse" local decision. Low temp means being more greedy and only accepting the "best" local decisions. Initially, we'll start high to try and escape local optima and search for global optima.
 # initialTemp, coolingRate, AND iterations ARE TUNABLE VARIABLES!!! THE REST ARE NOT!!!
-def simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget, initialTemp=80.0, coolingRate=0.9995, iterations=15000):
+def simulatedAnnealing(grid, walls, horsePosition, portals, wallBudget, initialTemp=80.0, coolingRate=0.9995, iterations=1000000):
 
   currentWalls = set(walls)
   currentEnergy = energy(grid, currentWalls, horsePosition, portals)
@@ -311,6 +311,8 @@ if __name__ == "__main__":
       # Keep track of the wall positions
       if row[c] == 'W':
         row[c] = '.'
+        walls.add((r,c))
+        #walls.add((r, c))
       # and where the horse is
       elif row[c] == 'H':
         horsePosition = (r, c)
@@ -371,7 +373,7 @@ if __name__ == "__main__":
   # Run the simulated annealing
   # Do it with five restarts in order to ensure we got the best possible outcome.
   # Number of restarts is tunable.
-  numStarts = 10
+  numStarts = 3
   bestWalls = ()
   bestEnergy = sys.maxsize
   for _ in range(numStarts):
@@ -386,7 +388,7 @@ if __name__ == "__main__":
   # Check that the final solution is indeed a valid one.
   # Must build the final world state before running final BFS.
   finalGrid = buildOutputGrid(grid, bestWalls)
-  finalScore, isValid = bfsScore(finalGrid, bestWalls, horsePosition, portals)
+  finalScore, isValid, _ = bfsScore(finalGrid, bestWalls, horsePosition, portals)
   if not isValid:
     print(":(")
     sys.exit(1)
