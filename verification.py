@@ -1,4 +1,8 @@
 from utils.Stack import Stack
+from utils.input_parser import FieldTiles, get_point_value, HorseField
+from argparse import ArgumentParser
+import sys
+
 # GLOBALS
 inputGrid = []
 inputGridDict = {}
@@ -9,51 +13,49 @@ suggestedScore = 0 # score from unverified output
 horsePosition = None # horsePosition we can use to begin DFS search
 numRows = 0
 numCols = 0
-pointsDict = { # Dictionary for calculating score
-    "." : 1,
-    "a" : 11,
-    "b" : -4,
-    "c" : 4,
-    "H" : 1,
-    "p" : 1,
-    "#" : 0,
-    "W" : 0
-}
 portals = {}
 """
 readOutput() parses input similar how input is parsed in solver.py.
 It also creates a key,value pair in outputGridDict in the form of (cell, cell_type)
 where we can easily look up what a cell is (apples, bees, wall, water, etc.)
 """
-def readInput():
-    global wallBudget, numRows, numCols
-    wallBudget = int(input())
-    numRows, numCols = map(int, input().split())
+def readInput(filename=None):
+    global wallBudget, numRows, numCols, inputGrid, portals
+    fieldInput = HorseField(filename)
+    if not fieldInput.valid:
+        sys.exit(3)
+    wallBudget = fieldInput.wallBudget
+    numRows = fieldInput.row_count
+    numCols = fieldInput.col_count
+    inputGrid = fieldInput.grid
+    portals = fieldInput.portals
     for r in range(numRows):
-        row = list(input().strip())
-        inputGrid.append(row)
         for c in range(numCols):
             cell_type = inputGrid[r][c]
+            if(cell_type == FieldTiles.HORSE):
+                horsePosition = (r,c)
             inputGridDict[(r,c)] = cell_type
-    numPortals = int(input())
-    for r in range(numPortals):
-        r1, c1, r2, c2 = map(int, input().split())
-        # A (row, col) is a key for where the position of the corresponding portal is
-        portals[(r1, c1)] = (r2, c2)
-        portals[(r2, c2)] = (r1, c1)
 
-def readOutput(): 
+def _readOutput(input_function):
     global suggestedScore, horsePosition
-    suggestedScore = int(input())
+    suggestedScore = int(input_function())
 
     for r in range(numRows):
-        row = list(input().strip())
+        row = list(input_function().strip())
         outputGrid.append(row)
         for c in range(numCols):
             cell_type = outputGrid[r][c]
-            if(cell_type == "H"):
+            if(cell_type == FieldTiles.HORSE):
                 horsePosition = (r,c)
             outputGridDict[(r,c)] = cell_type
+
+def readOutput(filename):
+    if filename:
+        with open(filename, "r", encoding="utf-8") as f:
+            _readOutput(lambda : f.readline().replace("\n",""))
+    else:
+        _readOutput(lambda : input())
+
 """ 
 verifyOutput will be in charge of the heavy lifting for verification. It will run a modified DFS to check if the 
 perimeter is accessible in the output. It will also be in charge of making sure that no new walls
@@ -64,7 +66,7 @@ def verifyNoEscape(outputGrid, horsePosition):
     stack = Stack()
     visited = set()
     stack.push(horsePosition) # push horsePosition (start) onto stack
-    while not stack.is_empty(): 
+    while not stack.is_empty():
         current = stack.pop() # get the cell at the top of stack
         if current[0] == 0 or current[0] == numRows - 1 or \
             current[1] == 0 or current[1] == numCols - 1: # check if current cell is a perimeter grass cell, if it is output is invalid
@@ -73,12 +75,12 @@ def verifyNoEscape(outputGrid, horsePosition):
         if current in visited: # skip neighbor if we already visited
             continue
         visited.add(current)
-        verifiedScore+=pointsDict.get(outputGridDict.get(current)) # add score to verifiedScore
+        verifiedScore+=get_point_value(outputGridDict.get(current)) # add score to verifiedScore
         neighbors = findNeighbors(outputGrid, current) # find the neighbors of the current cell
         for cell in neighbors: # for each neighbor
             if cell not in visited:
                 stack.push(cell) # push neighbor to stack if not already visited
-    print(f"DEBUG: suggested score: {suggestedScore}\nverified score: {verifiedScore}")
+    print(f"suggested score: {suggestedScore}\nverified score: {verifiedScore}")
     if suggestedScore == verifiedScore: # if both our calculated score and output suggestedScore are the same AND DFS completed, then the format of the output is valid
         return True
     print(f"Suggested Score {suggestedScore} does not match Verified Score {verifiedScore}. Invalid!")
@@ -92,9 +94,9 @@ def findNeighbors(outputGrid, cell):
     for dr, dc in directions:
         r, c = cell[0] + dr, cell[1] + dc
         if 0 <= r < numRows and 0 <= c < numCols:
-            if outputGrid[r][c] not in ("#", "W"): # skip walls and water
+            if outputGrid[r][c] not in (FieldTiles.WATER, FieldTiles.WALL): # skip walls and water
                 neighbors.add((r,c))
-    if(outputGridDict.get((cell[0], cell[1])) == "p"):
+    if(outputGridDict.get((cell[0], cell[1])) == FieldTiles.PORTAL):
         neighbors.add(portals.get((cell[0], cell[1])))
     return neighbors
 
@@ -105,10 +107,10 @@ def verifyOutputFormat():
             input_cell = inputGridDict.get((i,j))
             output_cell = outputGridDict.get((i,j))
             if input_cell != output_cell:
-                if input_cell == "." and output_cell == "W":
+                if input_cell == FieldTiles.GRASS and output_cell == FieldTiles.WALL:
                     usedWalls+=1
                     continue
-                elif input_cell == "W" and output_cell == ".":
+                elif input_cell == FieldTiles.WALL and output_cell == FieldTiles.GRASS:
                     continue  # valid to remove a pre-placed wall
                 else:
                     print(f"Illegal wall placement at: ({i}, {j}). It was a {input_cell}. Now it is a {output_cell}.")
@@ -118,14 +120,18 @@ def verifyOutputFormat():
     else:
         print(f"Output walls exceeded wall budget! Wall budgert is: {wallBudget}. The output grid used: {usedWalls} new walls.")
         return False
-            
-            
-    
-        
+
+
+
+
 if __name__ == "__main__":
-    readInput()
-    readOutput()
+    parser = ArgumentParser()
+    parser.add_argument('-fin', '--filename_in', default=None)
+    parser.add_argument('-fout', '--filename_out', default=None)
+    args = parser.parse_args()
+    readInput(args.filename_in)
+    readOutput(args.filename_out)
     isEscapeable = verifyNoEscape(outputGrid, horsePosition)
     isValidFormat = verifyOutputFormat()
     print(f"No escape routes? -> {isEscapeable}\nValid format? -> {isValidFormat}")
-    
+    sys.exit(0 if isEscapeable or isValidFormat else 2)
