@@ -56,7 +56,7 @@ class HorseField:
             self.portals[p2] = p1
         if len(self.grid) != self.row_count or len(self.grid[0]) != self.col_count:
             print("Invalid Input (grid dimension)")
-        self.valid = False
+            self.valid = False
         for portal_row, portal_col in self.portals.keys():
             if FieldTiles.PORTAL != self.grid[portal_row][portal_col]:
                 print("Invalid Input (portal placement)")

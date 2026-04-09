@@ -1,4 +1,0 @@
-suggested score: 8
-verified score: 8
-No escape routes? -> True
-Valid format? -> True

@@ -1,6 +1,7 @@
 from utils.Stack import Stack
 from utils.input_parser import FieldTiles, get_point_value, HorseField
 from argparse import ArgumentParser
+import sys
 
 # GLOBALS
 inputGrid = []
@@ -21,6 +22,8 @@ where we can easily look up what a cell is (apples, bees, wall, water, etc.)
 def readInput(filename=None):
     global wallBudget, numRows, numCols, inputGrid, portals
     fieldInput = HorseField(filename)
+    if not fieldInput.valid:
+        sys.exit(3)
     wallBudget = fieldInput.wallBudget
     numRows = fieldInput.row_count
     numCols = fieldInput.col_count
@@ -131,3 +134,4 @@ if __name__ == "__main__":
     isEscapeable = verifyNoEscape(outputGrid, horsePosition)
     isValidFormat = verifyOutputFormat()
     print(f"No escape routes? -> {isEscapeable}\nValid format? -> {isValidFormat}")
+    sys.exit(0 if isEscapeable or isValidFormat else 2)
