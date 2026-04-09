@@ -1,0 +1,4 @@
+suggested score: 18
+verified score: 18
+No escape routes? -> True
+Valid format? -> True

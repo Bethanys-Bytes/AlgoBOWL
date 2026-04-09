@@ -12,16 +12,6 @@ suggestedScore = 0 # score from unverified output
 horsePosition = None # horsePosition we can use to begin DFS search
 numRows = 0
 numCols = 0
-pointsDict = { # Dictionary for calculating score
-    "." : 1,
-    "a" : 11,
-    "b" : -4,
-    "c" : 4,
-    "H" : 1,
-    "p" : 1,
-    "#" : 0,
-    "W" : 0
-}
 portals = {}
 """
 readOutput() parses input similar how input is parsed in solver.py.
@@ -36,6 +26,12 @@ def readInput(filename=None):
     numCols = fieldInput.col_count
     inputGrid = fieldInput.grid
     portals = fieldInput.portals
+    for r in range(numRows):
+        for c in range(numCols):
+            cell_type = inputGrid[r][c]
+            if(cell_type == FieldTiles.HORSE):
+                horsePosition = (r,c)
+            inputGridDict[(r,c)] = cell_type
 
 def _readOutput(input_function):
     global suggestedScore, horsePosition
@@ -46,13 +42,13 @@ def _readOutput(input_function):
         outputGrid.append(row)
         for c in range(numCols):
             cell_type = outputGrid[r][c]
-            if(cell_type == "H"):
+            if(cell_type == FieldTiles.HORSE):
                 horsePosition = (r,c)
             outputGridDict[(r,c)] = cell_type
 
 def readOutput(filename):
     if filename:
-        with open(filename, "r", encoding="utf-u") as f:
+        with open(filename, "r", encoding="utf-8") as f:
             _readOutput(lambda : f.readline().replace("\n",""))
     else:
         _readOutput(lambda : input())
@@ -76,7 +72,7 @@ def verifyNoEscape(outputGrid, horsePosition):
         if current in visited: # skip neighbor if we already visited
             continue
         visited.add(current)
-        verifiedScore+=pointsDict.get(outputGridDict.get(current)) # add score to verifiedScore
+        verifiedScore+=get_point_value(outputGridDict.get(current)) # add score to verifiedScore
         neighbors = findNeighbors(outputGrid, current) # find the neighbors of the current cell
         for cell in neighbors: # for each neighbor
             if cell not in visited:
@@ -95,9 +91,9 @@ def findNeighbors(outputGrid, cell):
     for dr, dc in directions:
         r, c = cell[0] + dr, cell[1] + dc
         if 0 <= r < numRows and 0 <= c < numCols:
-            if outputGrid[r][c] not in ("#", "W"): # skip walls and water
+            if outputGrid[r][c] not in (FieldTiles.WATER, FieldTiles.WALL): # skip walls and water
                 neighbors.add((r,c))
-    if(outputGridDict.get((cell[0], cell[1])) == "p"):
+    if(outputGridDict.get((cell[0], cell[1])) == FieldTiles.PORTAL):
         neighbors.add(portals.get((cell[0], cell[1])))
     return neighbors
 
@@ -108,10 +104,10 @@ def verifyOutputFormat():
             input_cell = inputGridDict.get((i,j))
             output_cell = outputGridDict.get((i,j))
             if input_cell != output_cell:
-                if input_cell == "." and output_cell == "W":
+                if input_cell == FieldTiles.GRASS and output_cell == FieldTiles.WALL:
                     usedWalls+=1
                     continue
-                elif input_cell == "W" and output_cell == ".":
+                elif input_cell == FieldTiles.WALL and output_cell == FieldTiles.GRASS:
                     continue  # valid to remove a pre-placed wall
                 else:
                     print(f"Illegal wall placement at: ({i}, {j}). It was a {input_cell}. Now it is a {output_cell}.")
@@ -131,7 +127,7 @@ if __name__ == "__main__":
     parser.add_argument('-fout', '--filename_out', default=None)
     args = parser.parse_args()
     readInput(args.filename_in)
-    readOutput()
+    readOutput(args.filename_out)
     isEscapeable = verifyNoEscape(outputGrid, horsePosition)
     isValidFormat = verifyOutputFormat()
     print(f"No escape routes? -> {isEscapeable}\nValid format? -> {isValidFormat}")

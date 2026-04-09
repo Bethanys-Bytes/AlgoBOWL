@@ -1,0 +1,4 @@
+suggested score: 5
+verified score: 5
+No escape routes? -> True
+Valid format? -> True
