@@ -1,5 +1,7 @@
 from utils.Stack import Stack
 from utils.input_parser import FieldTiles, get_point_value, HorseField
+from argparse import ArgumentParser
+
 # GLOBALS
 inputGrid = []
 inputGridDict = {}
@@ -26,9 +28,9 @@ readOutput() parses input similar how input is parsed in solver.py.
 It also creates a key,value pair in outputGridDict in the form of (cell, cell_type)
 where we can easily look up what a cell is (apples, bees, wall, water, etc.)
 """
-def readInput():
+def readInput(filename=None):
     global wallBudget, numRows, numCols, inputGrid, portals
-    fieldInput = HorseField()
+    fieldInput = HorseField(filename)
     wallBudget = fieldInput.wallBudget
     numRows = fieldInput.row_count
     numCols = fieldInput.col_count
@@ -71,7 +73,7 @@ def verifyNoEscape(outputGrid, horsePosition):
         for cell in neighbors: # for each neighbor
             if cell not in visited:
                 stack.push(cell) # push neighbor to stack if not already visited
-    print(f"DEBUG: suggested score: {suggestedScore}\nverified score: {verifiedScore}")
+    print(f"suggested score: {suggestedScore}\nverified score: {verifiedScore}")
     if suggestedScore == verifiedScore: # if both our calculated score and output suggestedScore are the same AND DFS completed, then the format of the output is valid
         return True
     print(f"Suggested Score {suggestedScore} does not match Verified Score {verifiedScore}. Invalid!")
@@ -116,9 +118,12 @@ def verifyOutputFormat():
 
 
 if __name__ == "__main__":
-    readInput()
+    parser = ArgumentParser()
+    parser.add_argument('-fin', '--filename_in', default=None)
+    parser.add_argument('-fout', '--filename_out', default=None)
+    args = parser.parse_args()
+    readInput(args.filename_in)
     readOutput()
     isEscapeable = verifyNoEscape(outputGrid, horsePosition)
     isValidFormat = verifyOutputFormat()
-
     print(f"No escape routes? -> {isEscapeable}\nValid format? -> {isValidFormat}")
