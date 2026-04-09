@@ -127,5 +127,5 @@ if __name__ == "__main__":
     readOutput()
     isEscapeable = verifyNoEscape(outputGrid, horsePosition)
     isValidFormat = verifyOutputFormat()
-    print(f"Exists an Escapeable Path? -> {isEscapeable}\nValid format? -> {isValidFormat}")
+    print(f"No escape routes? -> {isEscapeable}\nValid format? -> {isValidFormat}")
     
