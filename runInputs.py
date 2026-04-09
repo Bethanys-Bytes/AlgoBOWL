@@ -14,12 +14,12 @@ for filename in os.listdir(input_dir):
     group_number = filename.replace("input_group", "").replace(".txt", "")
 
     input_path = os.path.join(input_dir, filename)
-    output_path = os.path.join(output_dir, f"{group_number}LARGE.txt")
+    output_path = os.path.join(output_dir, f"{group_number}SMALL.txt")
 
     print(f"Running solver on {filename}...")
 
     with open(input_path, "r") as infile, open(output_path, "w") as outfile:
-        result = subprocess.run(["python3", "solverLarge.py"], stdin=infile, stdout = outfile, stderr=subprocess.PIPE)
+        result = subprocess.run(["python3", "solverSmall.py"], stdin=infile, stdout = outfile, stderr=subprocess.PIPE)
     
     if result.returncode != 0:
         print(f"  ERROR on {filename}: {result.stderr.decode()}")
