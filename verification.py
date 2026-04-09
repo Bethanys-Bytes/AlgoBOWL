@@ -37,18 +37,26 @@ def readInput(filename=None):
     inputGrid = fieldInput.grid
     portals = fieldInput.portals
 
-def readOutput():
+def _readOutput(input_function):
     global suggestedScore, horsePosition
-    suggestedScore = int(input())
+    suggestedScore = int(input_function())
 
     for r in range(numRows):
-        row = list(input().strip())
+        row = list(input_function().strip())
         outputGrid.append(row)
         for c in range(numCols):
             cell_type = outputGrid[r][c]
             if(cell_type == "H"):
                 horsePosition = (r,c)
             outputGridDict[(r,c)] = cell_type
+
+def readOutput(filename):
+    if filename:
+        with open(filename, "r", encoding="utf-u") as f:
+            _readOutput(lambda : f.readline().replace("\n",""))
+    else:
+        _readOutput(lambda : input())
+
 """ 
 verifyOutput will be in charge of the heavy lifting for verification. It will run a modified DFS to check if the 
 perimeter is accessible in the output. It will also be in charge of making sure that no new walls
