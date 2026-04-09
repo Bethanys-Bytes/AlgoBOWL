@@ -2,6 +2,7 @@ from utils.input_parser import FieldTiles, get_point_value, HorseField
 from collections import deque
 from argparse import ArgumentParser
 
+
 class Tile:
     def __init__(self, tile_type: FieldTiles, row, col):
         self.tile_type = tile_type
@@ -73,7 +74,10 @@ class SubField:
                 if len(boundary_adjacent) == 1:
                     adjacent_next = next(iter(boundary_adjacent))
                     # If the tile the boundary is adjacent to is not the sink and is grass
-                    if sink_tile != adjacent_next and next(iter(boundary_adjacent)).tile_type == FieldTiles.GRASS:
+                    if (
+                        sink_tile != adjacent_next
+                        and next(iter(boundary_adjacent)).tile_type == FieldTiles.GRASS
+                    ):
                         stack.append(next_tile)
         return (added_to_state, added_to_boundary)
 
@@ -92,13 +96,18 @@ class SubField:
                 self.points += get_point_value(tile.tile_type)
         return self.points
 
-    def __eq__(self, other: 'SubField'):
-        return self.state == other.state
+    def __eq__(self, other: "SubField"):
+        if isinstance(other, SubField):
+            return self.state == other.state
+        if isinstance(other, frozenset):
+            return other == frozenset(self.state)
+        return False
 
     def __hash__(self):
         if self._hash is None:
             self._hash = hash(frozenset(self.state))
         return self._hash
+
 
 def file_record(record_function, tile_grid, grid_state):
     walls = [(wall_tile.row, wall_tile.col) for wall_tile in grid_state.boundary]
@@ -112,10 +121,29 @@ def file_record(record_function, tile_grid, grid_state):
                 line += tile.tile_type
         record_function(line)
 
+
+def record_best(tile_grid: list[list[Tile]], wall_limit: int, best_solution: SubField, new_solution: SubField, filename=None):
+    if len(new_solution.boundary) > wall_limit:
+        return best_solution
+    if not any(tile.tile_type == FieldTiles.GRASS for tile in new_solution.boundary):
+        return best_solution
+    if best_solution is None:
+        return new_solution
+    if new_solution.get_points() <= best_solution.get_points():
+        return best_solution
+    if filename:
+        with open(filename, "w", encoding="utf-8") as f:
+            file_record(lambda line: f.write(line + "\n"), tile_grid, new_solution)
+    else:
+        file_record(lambda line: print(line), tile_grid, new_solution)
+        print()
+    return new_solution
+
+
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument('-fin', '--filename_in', default=None)
-    parser.add_argument('-fout', '--filename_out', default=None)
+    parser.add_argument("-fin", "--filename_in", default=None)
+    parser.add_argument("-fout", "--filename_out", default=None)
     args = parser.parse_args()
 
     field_input = HorseField(args.filename_in)
@@ -146,15 +174,16 @@ if __name__ == "__main__":
         tile_grid[portal1_row][portal1_col].add_adjacency(tile_grid[portal2_row][portal2_col])
         tile_grid[portal2_row][portal2_col].add_adjacency(tile_grid[portal1_row][portal1_col])
 
-    subfields: set[SubField] = set()
-    boundary_expanded: dict[Tile:tuple[set[Tile],set[Tile]]] = {}
-    expand_queue: deque[SubField] = deque()
-    initial_state = SubField({tile_grid[field_input.horse[0]][field_input.horse[1]]})
-    best_solution: SubField = initial_state
-    expand_queue.append(initial_state)
-    subfields.add(initial_state)
+    horse_tile: Tile = tile_grid[field_input.horse[0]][field_input.horse[1]]
+    initial_state = SubField({horse_tile})
+    subfields: set[SubField] = set(initial_state)
+    expand_queue: deque[SubField] = deque(initial_state)
+    boundary_expanded: dict[Tile : tuple[set[Tile], set[Tile]]] = {}
+    best_solution: SubField = record_best(tile_grid, field_input.wallBudget, None, initial_state, args.filename_out)
+
+    # TODO: Minimize duplicates
+    duplicates = 0
     expansions = 0
-    duplicates = 0 #TODO: Minimize duplicates
 
     while len(expand_queue) > 0:
         expand_from = expand_queue.popleft()
@@ -164,29 +193,20 @@ if __name__ == "__main__":
             expanded = SubField(set(expand_from.state), set(expand_from.boundary))
             if boundary_tile in boundary_expanded:
                 if sink_tile in boundary_expanded[boundary_tile][1]:
-                    continue # Horse can escape if expanded here
+                    continue  # Horse can escape if expanded here
                 expansions += 1
                 expanded.include_precompute(*boundary_expanded[boundary_tile])
             else:
                 expansions += 1
                 boundary_expanded[boundary_tile] = expanded.include(boundary_tile, sink_tile)
                 if sink_tile in boundary_expanded[boundary_tile][1]:
-                    continue # Horse can escape if expanded here
+                    continue  # Horse can escape if expanded here
             if expanded in subfields:
                 duplicates += 1
                 continue
             subfields.add(expanded)
             expand_queue.append(expanded)
-            if expanded.next_possible_expansions() > field_input.wallBudget:
-                continue
-            if all(tile.tile_type == FieldTiles.GRASS for tile in expanded.boundary):
-                if best_solution is None or expanded.get_points() > best_solution.get_points():
-                    best_solution = expanded
-                    if args.filename_out:
-                        with open(args.filename_out, "w", encoding="utf-8") as f:
-                            file_record(lambda line : f.write(line+"\n"), tile_grid, best_solution)
-                    else:
-                        file_record(lambda line : print(line), tile_grid, best_solution)
-                        print()
+            best_solution = record_best(tile_grid, field_input.wallBudget, best_solution, expanded, args.filename_out)
+
     print("Expansions: ", expansions)
     print("Duplicates: ", duplicates)
