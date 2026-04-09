@@ -25,16 +25,27 @@ def get_point_value(tile: FieldTiles) -> int:
     return 0
 
 class HorseField:
-    def __init__(self):
-        self.wallBudget = int(input())
-        self.row_count, self.col_count = map(int, input().split())
+    def __init__(self, filename = None):
+        self.wallBudget = 0
+        self.row_count = 0
+        self.col_count = 0
         self.grid = []
         self.walls = set()
         self.portals = {}
         self.horse = None
-        self.valid = True
+        self.valid = False
+        if filename is not None:
+            with open(filename, "r", encoding="utf-8") as f:
+                self.read_input(lambda : f.readline().replace("\n",""))
+        else:
+            self.read_input(lambda : input())
+
+    def read_input(self, input_reader):
+        self.wallBudget = int(input_reader())
+        self.row_count, self.col_count = map(int, input_reader().split())
+        self.valid = True # Input can be read
         for row_idx in range(self.row_count):
-            row = list(input().strip())
+            row = list(input_reader().strip())
             # Put rows into the global grid
             self.grid.append(row)
             for col_idx in range(self.col_count):
@@ -46,9 +57,9 @@ class HorseField:
                 elif row[col_idx] == FieldTiles.HORSE:
                     self.horse = current_cell
         # Store portal mappings
-        numPortals = int(input())
+        numPortals = int(input_reader())
         for _ in range(numPortals):
-            r1, c1, r2, c2 = map(int, input().split())
+            r1, c1, r2, c2 = map(int, input_reader().split())
             p1 = (r1, c1)
             p2 = (r2, c2)
             # A (row, col) is a key for where the position of the corresponding portal is

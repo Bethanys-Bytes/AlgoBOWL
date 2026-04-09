@@ -5,7 +5,8 @@ from argparse import ArgumentParser
 
 class Tile:
     def __init__(self, tile_type: FieldTiles, row, col):
-        self.tile_type = tile_type
+        self.tile_type = tile_type if tile_type != FieldTiles.WALL else FieldTiles.GRASS
+        self.points = get_point_value(self.tile_type)
         self.row: int = row
         self.col: int = col
         self.adjacencies: set[Tile] = set()
@@ -52,7 +53,7 @@ class SubField:
         while stack:
             current = stack.pop()
             if current in self.state:
-                self.boundary.remove(current)
+                self.boundary.discard(current)
                 continue
             # Add to current state
             self.state.add(current)
@@ -63,7 +64,7 @@ class SubField:
             if sink_tile in new_boundary:
                 return (added_to_state, added_to_boundary)
             self.boundary |= new_boundary
-            self.boundary.remove(current)
+            self.boundary.discard(current)
             for next_tile in new_boundary:
                 # If next_tile is not grass, cannot place a wall and more expansion is needed
                 if next_tile.tile_type != FieldTiles.GRASS:
@@ -90,10 +91,10 @@ class SubField:
         return len(self.boundary)
 
     def get_points(self):
-        if self.points == None:
+        if self.points is None:
             self.points = 0
             for tile in self.state:
-                self.points += get_point_value(tile.tile_type)
+                self.points += tile.points
         return self.points
 
     def __eq__(self, other: "SubField"):
@@ -185,7 +186,7 @@ if __name__ == "__main__":
     duplicates = 0
     expansions = 0
 
-    while len(expand_queue) > 0:
+    while expand_queue:
         expand_from = expand_queue.popleft()
         for boundary_tile in expand_from.boundary:
             expanded = SubField(set(expand_from.state), set(expand_from.boundary))
