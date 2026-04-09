@@ -1,5 +1,6 @@
 from utils.input_parser import FieldTiles, get_point_value, HorseField
 from collections import deque
+from argparse import ArgumentParser
 
 
 class Tile:
@@ -87,10 +88,29 @@ class SubField:
         return self.state == other.state
 
     def __hash__(self):
-        return hash(frozenset(self.state))
+        if self._hash is None:
+            self._hash = hash(frozenset(self.state))
+        return self._hash
+
+def file_record(record_function, tile_grid, grid_state):
+    walls = [(wall_tile.row, wall_tile.col) for wall_tile in grid_state.boundary]
+    record_function(f"{grid_state.get_points()}")
+    for row_idx, row in enumerate(tile_grid):
+        line = ""
+        for col_idx, tile in enumerate(row):
+            if (row_idx, col_idx) in walls:
+                line += "W"
+            else:
+                line += tile.tile_type
+        record_function(line)
 
 if __name__ == "__main__":
-    field_input = HorseField()
+    parser = ArgumentParser()
+    parser.add_argument('-fin', '--filename_in', default=None)
+    parser.add_argument('-fout', '--filename_out', default=None)
+    args = parser.parse_args()
+
+    field_input = HorseField(args.filename_in)
     sink_tile = Tile(FieldTiles.GRASS, -1, -1)  # Make an adjacent tile to all edges to track if escape is possible
     tile_grid: list[list[Tile]] = []
     for row_idx, row in enumerate(field_input.grid):
@@ -153,6 +173,12 @@ if __name__ == "__main__":
                 # valid_solutions.add(expanded)
                 if expanded.get_points() > best_solution.get_points():
                     best_solution = expanded
+                    if args.filename_out:
+                        with open(args.filename_out, "w", encoding="utf-8") as f:
+                            file_record(lambda line : f.write(line+"\n"), tile_grid, best_solution)
+                    else:
+                        file_record(lambda line : print(line), tile_grid, best_solution)
+                        print()
     # print("Expansions: ", expansions)
     # print("Duplicates: ", duplicates)
     # Display possible valid outputs
