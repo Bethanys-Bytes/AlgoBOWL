@@ -176,8 +176,8 @@ if __name__ == "__main__":
 
     horse_tile: Tile = tile_grid[field_input.horse[0]][field_input.horse[1]]
     initial_state = SubField({horse_tile})
-    subfields: set[SubField] = set(initial_state)
-    expand_queue: deque[SubField] = deque(initial_state)
+    subfields: set[SubField] = set([initial_state])
+    expand_queue: deque[SubField] = deque([initial_state])
     boundary_expanded: dict[Tile : tuple[set[Tile], set[Tile]]] = {}
     best_solution: SubField = record_best(tile_grid, field_input.wallBudget, None, initial_state, args.filename_out)
 
@@ -188,8 +188,6 @@ if __name__ == "__main__":
     while len(expand_queue) > 0:
         expand_from = expand_queue.popleft()
         for boundary_tile in expand_from.boundary:
-            if frozenset(expand_from.state | {boundary_tile}) in subfields:
-                continue
             expanded = SubField(set(expand_from.state), set(expand_from.boundary))
             if boundary_tile in boundary_expanded:
                 if sink_tile in boundary_expanded[boundary_tile][1]:
