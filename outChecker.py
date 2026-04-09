@@ -24,11 +24,11 @@ for filename in os.listdir(output_dir):
         inputGroup = file.replace("input_group", "").replace(".txt", "")
         if inputGroup == group_number:
             input_file = input_dir + "/" + file
-    
+
     print(f"Running verification on {output_path}...")
 
     result = subprocess.run(["python3", "verification.py", "-fin", input_file, "-fout", output_path], stderr=subprocess.PIPE)
-    
+
     if result.returncode == 3:
         print(f"  Bad Input Error on {input_file}: {result.stderr.decode()}")
     elif result.returncode == 2:
@@ -48,6 +48,7 @@ for filename in os.listdir(output_dir):
                 new_score = int(new_soln.readline().replace("\n", ""))
             if new_score <= best_score:
                 continue
+            print(f"Improvements: {best_score} -> {new_score}")
         else:
             verified_output_path = f"{verified_output_dir}/{group_number}.txt"
             # copy new output to verified output path
