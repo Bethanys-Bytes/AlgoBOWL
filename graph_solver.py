@@ -1,6 +1,7 @@
 from utils.input_parser import FieldTiles, get_point_value, HorseField
 from collections import deque
 from argparse import ArgumentParser
+import re
 
 
 class Tile:
@@ -17,6 +18,12 @@ class Tile:
         if adjacent_tile.tile_type in (FieldTiles.WALL, FieldTiles.WATER):
             return
         self.adjacencies.add(adjacent_tile)
+
+    def __hash__(self):
+        return hash((self.row, self.col))
+
+    def __eq__(self, other):
+        return (self.row, self.col) == (other.row, other.col)
 
     def __str__(self):
         return f"{self.tile_type}:({self.row},{self.col})"
@@ -43,6 +50,19 @@ class SubField:
             self.boundary.update(tile.adjacencies - self.state)
         self.known = self.state|self.boundary
 
+    def validate_boundary(self):
+        expand_required: set[Tile] = set()
+        for tile in self.boundary:
+            if tile.tile_type != FieldTiles.GRASS:
+                expand_required.add(tile)
+                continue
+            boundary_adjacent = tile.adjacencies-self.known
+            if len(boundary_adjacent) == 0:
+                expand_required.add(tile)
+            elif len(boundary_adjacent) == 1 and all(boundary_adj.tile_type == FieldTiles.GRASS for boundary_adj in boundary_adjacent):
+                expand_required.add(tile)
+        return expand_required
+
     def boundary_to_state(self, tile: Tile):
         adjacencies = tile.adjacencies - self.known
         self.state.add(tile)
@@ -62,25 +82,8 @@ class SubField:
                 continue
             # Add adjacencies to new element to boundary
             self.boundary_to_state(current)
-            for tile in self.boundary:
-                if tile.tile_type != FieldTiles.GRASS:
-                    check_expand.append(tile)
-                    continue
-                boundary_adjacent = tile.adjacencies-self.known
-                if len(boundary_adjacent) == 0:
-                    check_expand.append(tile)
-                elif len(boundary_adjacent) == 1 and all(boundary_adj.tile_type == FieldTiles.GRASS for boundary_adj in boundary_adjacent):
-                    check_expand.append(tile)
-        for tile in self.known:
-            if tile in self.boundary and tile in self.state:
-                print("TILE IN STATE AND BOUNDARY", tile)
-                input()
+            check_expand.extend(self.validate_boundary())
         return True
-
-    def include_precompute(self, added_to_state, added_to_boundary):
-        self.state |= added_to_state
-        self.boundary |= added_to_boundary
-        self.build_boundary()
 
     def next_possible_expansions(self) -> int:
         return len(self.boundary)
@@ -91,6 +94,14 @@ class SubField:
             for tile in self.state:
                 self.points += tile.points
         return self.points
+
+    def copy(self) -> "SubField":
+        new = SubField.__new__(SubField)
+        new.state = set(self.state)
+        new.boundary = set(self.boundary)
+        new.known = set(self.known)
+        new.points = None
+        return new
 
     def __eq__(self, other: "SubField"):
         if isinstance(other, SubField):
@@ -165,27 +176,54 @@ if __name__ == "__main__":
     horse_tile: Tile = TILE_GRID[field_input.horse[0]][field_input.horse[1]]
     initial_state = SubField({horse_tile})
     subfields: list[SubField] = [initial_state]
+    subfields_by_size: dict[int:list[SubField]] = {len(initial_state.boundary): [initial_state]}
     expand_queue: deque[SubField] = deque([initial_state])
     best_solution: SubField = record_best(field_input.wallBudget, None, initial_state, args.filename_out)
 
     # TODO: Minimize duplicates
     duplicates = 0
     expansions = 0
+    synonyms = 0
 
     while expand_queue:
         expand_from = expand_queue.popleft()
         for boundary_tile in expand_from.boundary:
-            expanded = SubField(set(expand_from.state))
+            expanded = expand_from.copy()
             expansions += 1
             if not expanded.include(boundary_tile):
                 continue  # Horse can escape if expanded here
-            if expanded in subfields:
-                duplicates += 1
+            # Determine if this field should be tracked
+            track = True
+            subsets = []
+            if len(expanded.boundary) not in subfields_by_size:
+                subfields_by_size[len(expanded.boundary)] = []
+            for idx, subfield in enumerate(subfields_by_size[len(expanded.boundary)]):
+                # If expanded has been seen before, don't track
+                if expanded == subfield:
+                    duplicates += 1
+                    track = False
+                    break
+                # expanded.known is a subset of the known subfield's known, don't track
+                if expanded.known.issubset(subfield.known):
+                    track = False
+                    synonyms += 1
+                # the known subfield's known is a subset of expanded.known, track
+                if subfield.known.issubset(expanded.known):
+                    subsets.append(idx)
+                    synonyms += 1
+            # Don't track subfields that are subsets of other subfields
+            for i in range(len(subfields_by_size[len(expanded.boundary)])-1, -1, -1):
+                subfields_by_size[len(expanded.boundary)].pop(i)
+            if not track:
                 continue
-            # TODO: If expanded has the same number of boundary tiles as a known subfield, has less points, and expanded.known is a subset of the known subfield's known, skip
-            subfields.append(expanded)
+            subfields_by_size[len(expanded.boundary)].append(expanded)
             expand_queue.append(expanded)
             best_solution = record_best(field_input.wallBudget, best_solution, expanded, args.filename_out)
-
+    if args.filename_in:
+        group_number = ""
+        for group_number_match in re.findall(r"\d+", args.filename_in):
+            group_number = group_number_match
+        print("Group     : ", group_number)
     print("Expansions: ", expansions)
     print("Duplicates: ", duplicates)
+    print("Synonyms  : ", synonyms)

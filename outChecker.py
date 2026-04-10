@@ -69,7 +69,7 @@ def verify_directory(record_function):
                 verified_output_path = f"{args.optimal_dir}/{group_number}.txt"
                 # copy new output to verified output path
             shutil.copyfile(output_path, verified_output_path)
-            record_function(f"  Optimal Output Found -> {verified_output_path}")
+            record_function(f"  More Optimal Output Found -> {verified_output_path}")
 
 if args.verification_results:
     with open(args.verification_results, "w", encoding="utf-8") as f:
