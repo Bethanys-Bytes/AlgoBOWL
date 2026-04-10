@@ -9,6 +9,7 @@ os.makedirs(output_dir, exist_ok=True)
 os.makedirs(verified_output_dir, exist_ok=True)
 
 for filename in os.listdir(output_dir):
+    print()
     if not filename.endswith(".txt"):
         continue
 

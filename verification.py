@@ -134,4 +134,4 @@ if __name__ == "__main__":
     isEscapeable = verifyNoEscape(outputGrid, horsePosition)
     isValidFormat = verifyOutputFormat()
     print(f"No escape routes? -> {isEscapeable}\nValid format? -> {isValidFormat}")
-    sys.exit(0 if isEscapeable or isValidFormat else 2)
+    sys.exit(0 if isEscapeable and isValidFormat else 2)
