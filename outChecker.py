@@ -15,10 +15,7 @@ for filename in os.listdir(output_dir):
 
     # extract the group number
     output_path = os.path.join(output_dir, filename)
-    if filename.startswith("output"):
-        group_number = filename.replace(".txt", "")
-    else:
-        group_number = filename.replace("LARGE", "").replace("output_group", "").replace("SMALL", "").replace("_manual", "").replace(".txt", "")
+    group_number = filename.replace("LARGE", "").replace("output_group", "").replace("SMALL", "").replace("_manual", "").replace(".txt", "")
 
     input_file = ""
     for file in os.listdir(input_dir):
