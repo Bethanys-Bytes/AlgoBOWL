@@ -42,6 +42,17 @@ class SubField:
             outside_state = tile.adjacencies - self.state
             if len(outside_state) > 0:
                 self.boundary |= outside_state
+        boundary_adjust = deque([*self.boundary])
+        while boundary_adjust:
+            tile = boundary_adjust.popleft()
+            expansions = tile.adjacencies - self.state - self.boundary
+            if len(expansions) == 0:
+                self.boundary.discard(tile)
+                self.state.add(tile)
+            elif tile.tile_type != FieldTiles.GRASS:
+                for expansion in expansions:
+                    boundary_adjust.append(expansion)
+
 
     def include(self, include_tile: Tile, sink_tile: Tile):
         if include_tile not in self.boundary:
@@ -59,7 +70,9 @@ class SubField:
             self.state.add(current)
             added_to_state.add(current)
             # Add adjacencies to new element to boundary
-            new_boundary = current.adjacencies - self.state
+            new_boundary = (current.adjacencies - self.state) - self.boundary
+            if not new_boundary:
+                continue
             added_to_boundary |= new_boundary
             if sink_tile in new_boundary:
                 return (added_to_state, added_to_boundary)
@@ -72,14 +85,11 @@ class SubField:
                 # If consuming the extended boundary tile does not increase the number of boundary tiles, consume
                 boundary_adjacent = next_tile.adjacencies - self.state
                 # If the boundary tile is adjacent to only one unknown tile
-                if len(boundary_adjacent) == 1:
-                    adjacent_next = next(iter(boundary_adjacent))
-                    # If the tile the boundary is adjacent to is not the sink and is grass
-                    if (
-                        sink_tile != adjacent_next
-                        and next(iter(boundary_adjacent)).tile_type == FieldTiles.GRASS
-                    ):
-                        stack.append(next_tile)
+                if len(boundary_adjacent) <= 1:
+                    for adjacent_next in boundary_adjacent:
+                        # If the tile the boundary is adjacent to is not the sink and is grass
+                        if sink_tile != adjacent_next and adjacent_next.tile_type == FieldTiles.GRASS:
+                            stack.append(next_tile)
         return (added_to_state, added_to_boundary)
 
     def include_precompute(self, added_to_state, added_to_boundary):
@@ -180,6 +190,8 @@ if __name__ == "__main__":
     subfields: set[SubField] = set([initial_state])
     expand_queue: deque[SubField] = deque([initial_state])
     boundary_expanded: dict[Tile : tuple[set[Tile], set[Tile]]] = {}
+    state_sizes: dict[int : int] = {1: 1}
+    sized_states: dict[int : set[SubField]] = {1: {initial_state}}
     best_solution: SubField = record_best(tile_grid, field_input.wallBudget, None, initial_state, args.filename_out)
 
     # TODO: Minimize duplicates
@@ -188,6 +200,8 @@ if __name__ == "__main__":
 
     while expand_queue:
         expand_from = expand_queue.popleft()
+        state_size = len(expand_from.state)
+        state_sizes[state_size] -= 1
         for boundary_tile in expand_from.boundary:
             expanded = SubField(set(expand_from.state), set(expand_from.boundary))
             if boundary_tile in boundary_expanded:
@@ -203,9 +217,19 @@ if __name__ == "__main__":
             if expanded in subfields:
                 duplicates += 1
                 continue
+            expanded_state_size = len(expanded.state)
+            if expanded_state_size not in state_sizes:
+                sized_states[expanded_state_size] = set()
+                state_sizes[expanded_state_size] = 0
+            sized_states[expanded_state_size].add(expanded)
+            state_sizes[expanded_state_size] += 1
             subfields.add(expanded)
             expand_queue.append(expanded)
             best_solution = record_best(tile_grid, field_input.wallBudget, best_solution, expanded, args.filename_out)
+        if state_sizes[state_size] <= 0 and min(state_sizes.keys()) == state_size:
+            subfields -= sized_states[state_size]
+            del state_sizes[state_size]
+            del sized_states[state_size]
 
     print("Expansions: ", expansions)
     print("Duplicates: ", duplicates)
