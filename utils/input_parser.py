@@ -9,6 +9,7 @@ class FieldTiles(StrEnum):
     BEES    = "b"
     PORTAL  = "p"
     GRASS   = "."
+    EDGE    = " "
 
 def get_point_value(tile: FieldTiles) -> int:
     if tile in (FieldTiles.GRASS, FieldTiles.HORSE, FieldTiles.PORTAL):
@@ -21,7 +22,7 @@ def get_point_value(tile: FieldTiles) -> int:
         return 4
     elif tile == FieldTiles.BEES:
         return -4
-    print("Invalid Tile for Point Assignment", tile)
+    print(f"Invalid Tile for Point Assignment: '{tile}'")
     return 0
 
 class HorseField:
