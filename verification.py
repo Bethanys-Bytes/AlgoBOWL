@@ -106,15 +106,13 @@ def verifyOutputFormat():
         for j in range(numCols):
             input_cell = inputGridDict.get((i,j))
             output_cell = outputGridDict.get((i,j))
-            if input_cell != output_cell:
-                if input_cell == FieldTiles.GRASS and output_cell == FieldTiles.WALL:
-                    usedWalls+=1
+            if output_cell == FieldTiles.WALL:
+                usedWalls+=1
+                if input_cell == FieldTiles.GRASS or input_cell == FieldTiles.WALL:
                     continue
-                elif input_cell == FieldTiles.WALL and output_cell == FieldTiles.GRASS:
-                    continue  # valid to remove a pre-placed wall
-                else:
-                    print(f"Illegal wall placement at: ({i}, {j}). It was a {input_cell}. Now it is a {output_cell}.")
-                    return False
+                print(f"Illegal wall placement at: ({i}, {j}). It was a {input_cell}. Now it is a {output_cell}.")
+                return False
+
     if usedWalls <= wallBudget:
         return True
     else:
